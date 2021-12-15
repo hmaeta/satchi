@@ -1,144 +1,180 @@
 (defpackage :satchi
   (:use :cl)
   (:export :make-service
-           :view-latest
            :fetch-icon
+           :fetch-to-pooled
            :handle-request))
 (in-package :satchi)
 
-(defstruct state
-  (gateways nil)
-  (notification-list (satchi.notification-list:make-state))
-  (filter (satchi.filter:make-state)))
+(defclass filter-state (satchi.filter:state)
+  ((is-mention-only
+    :initform nil
+    :reader filter-state-is-mention-only)
+   (keyword
+    :initform ""
+    :reader filter-state-keyword)))
 
-(defclass service ()
-  ((state
-    :initarg :state
-    :reader service-state)
-   (on-update-view
-    :initarg :on-update-view
-    :reader service-on-update-view)))
+(defmethod satchi.filter:update-mentioned ((s filter-state) fn)
+  (with-slots (is-mention-only) s
+    (setf is-mention-only (funcall fn is-mention-only))))
 
-(defun private-icon-url (icon gateway-id)
-  (format nil "http://localhost:8037/icon?gatewayId=~A&iconId=~A"
-          gateway-id
-          (satchi.notification::private-icon-id icon)))
+(defmethod satchi.filter:update-keyword ((s filter-state) str)
+  (with-slots (keyword) s
+    (setf keyword str)))
 
-(defun private-icon-url-decode (url)
-  (let ((alist (quri:uri-query-params (quri:uri url))))
-    (list (cdr (assoc "gatewayId" alist :test #'string=))
-          (cdr (assoc "iconId" alist :test #'string=)))))
+;;;;
 
-(defun make-view (notification-list-state filter-state)
-  (jsown:to-json
-   (jsown:new-js
-     ("type" "UpdateView")
-     ("value"
-      (etypecase notification-list-state
-        (satchi.notification-list::loading-state
-         (jsown:new-js
-           ("stateClass" "LoadingState")))
-        (satchi.notification-list::viewing-state
-         (jsown:new-js
-           ("stateClass" "ViewingState")
-           ("stateData"
-            (jsown:new-js
-              ("notifications"
-               (let ((gw-id-ntf-list
-                      (satchi.notification-list::viewing-state-unread
-                       notification-list-state)))
-                 (when (satchi.filter::state-is-mention-only filter-state)
-                   (setq gw-id-ntf-list
-                         (remove-if-not
-                          #'satchi.notification::notification-mentioned-p
-                          gw-id-ntf-list
-                          :key #'second)))
-                 (loop for (gw-id n) in gw-id-ntf-list collect
-                   (jsown:new-js
-                     ("imestamp"
-                      (local-time:format-timestring
-                       nil
-                       (satchi.notification::notification-timestamp n)))
-                     ("source"
-                      (let ((source (satchi.notification::notification-source
-                                     n)))
-                        (jsown:new-js
-                          ("name"
-                           (satchi.notification::source-name source))
-                          ("url"
-                           (satchi.notification::source-url source))
-                          ("iconUrl"
-                           (let ((icon (satchi.notification::source-icon
-                                        source)))
-                             (typecase icon
-                               (satchi.notification::icon
-                                (satchi.notification::icon-url icon))
-                               (satchi.notification::private-icon
-                                (private-icon-url icon gw-id))
-                               (t :null)))))))
-                     ("title"
-                      (satchi.notification::notification-title n))
-                     ("message"
-                      (satchi.notification::notification-message n))
-                     ("mentioned"
-                      (if (satchi.notification::notification-mentioned-p n)
-                          :t :f))
-                     ("gatewayId"
-                      gw-id)
-                     ("id"
-                      (satchi.notification::notification-id n))))))
-              ("isMentionOnly"
-               (if (satchi.filter::state-is-mention-only filter-state)
-                   :t :f)))))))))))
+(defstruct loading-state)
+(defstruct viewing-state gateway-state-set filter-state)
 
-(defun service-update-view (service)
+(defun viewing-state-gateway-state (gw-id state)
+  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-get-state gw-state-set gw-id)))
+
+(defun viewing-state-items (state)
+  (with-accessors ((filter-state viewing-state-filter-state)
+                   (gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-unread-list
+     gw-state-set #'satchi.view:make-item
+     :is-mention-only
+     (filter-state-is-mention-only filter-state))))
+
+(defun viewing-state-incoming-notification-count (state)
+  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-pooled-count gw-state-set)))
+
+;;;
+
+(defstruct service state gateways send-view-fn send-ntfs-fn)
+
+(defun gui-update (service)
+  (funcall (service-send-view-fn service)
+           (let ((state (service-state service)))
+             (etypecase state
+               (loading-state
+                (satchi.view:loading))
+               (viewing-state
+                (satchi.view:viewing
+                 :items
+                 (viewing-state-items state)
+                 :is-mention-only
+                 (filter-state-is-mention-only
+                  (viewing-state-filter-state state))
+                 :incoming-notification-count
+                 (viewing-state-incoming-notification-count state)))))))
+
+(defmethod satchi.notification-list:gui-update ((s service))
+  (gui-update s))
+
+(defmethod satchi.filter:gui-update ((s service))
+  (gui-update s))
+
+(defmethod satchi.desktop-notification:sender-send ((s service) ntfs)
+  (funcall (service-send-ntfs-fn s) ntfs))
+
+
+(defun toggle-mentioned (service)
   (let ((state (service-state service)))
-    (funcall (service-on-update-view service)
-             (make-view (state-notification-list state)
-                        (state-filter state)))))
+    (when (typep state 'viewing-state)
+      (satchi.filter:toggle-mentioned
+       :state (viewing-state-filter-state state)
+       :renderer service))))
 
-(defmethod satchi.notification-list:service-update ((service service) fn)
-  (setf (state-notification-list (service-state service))
-        (funcall fn (state-notification-list (service-state service))))
-  (service-update-view service))
+(defun change-keyword (service keyword)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (satchi.filter:change-keyword keyword
+       :state (viewing-state-filter-state state)
+       :renderer service))))
 
-(defmethod satchi.notification-list:service-gateways ((service service))
-  (state-gateways (service-state service)))
+(defun mark-as-read (service gw-id ntf-id)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (let ((gw (find gw-id (service-gateways service)
+                      :key #'satchi.gateway:gateway-id
+                      :test #'string=))) ;; gw-id
+        (satchi.notification-list:mark-as-read ntf-id
+         :client (satchi.gateway:gateway-client gw)
+         :state (viewing-state-gateway-state gw-id state)
+         :renderer service)))))
 
-(defmethod satchi.filter:service-update ((service service) fn)
-  (setf (state-filter (service-state service))
-        (funcall fn (state-filter (service-state service))))
-  (service-update-view service))
+(defun fetch-back-to-unread (service)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (satchi.time-machine:fetch-back-to-unread
+           :client client
+           :state (viewing-state-gateway-state id state)))))))
 
+(defun fetch-to-pooled (service)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (satchi.notification-list:fetch-to-pooled
+           :client client
+           :state (viewing-state-gateway-state id state)
+           :renderer service))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;
+(defun send-desktop-notification (service)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (satchi.desktop-notification:run
+           :client client
+           :sender service
+           :state (viewing-state-gateway-state id state)))))))
 
-(defun fetch-icon (service private-icon-url)
-  (destructuring-bind (gateway-id icon-id)
-      (private-icon-url-decode private-icon-url)
-    (satchi.notification-list::fetch-icon service
-                                          gateway-id
-                                          icon-id)))
+(defun view-latest (service)
+  (setf (service-state service)
+        (make-loading-state))
+  (gui-update service)
+  (let ((hash (make-hash-table :test #'equal))) ;;gw-id
+    (dolist (gw (service-gateways service))
+      (let ((ntfs (satchi.notification:fetch-notifications
+                   (satchi.gateway:gateway-client gw)))
+            (holder (satchi.gateway:make-holder gw)))
+        (setf (gethash (satchi.gateway:gateway-id gw) hash)
+              (make-instance 'satchi.gateway:state
+               :holder (satchi.gateway:holder-add-to-unread
+                        holder
+                        ntfs)
+               :sent-ntfs nil
+               :offset ""))))
+    (setf (service-state service)
+          (make-viewing-state
+           :gateway-state-set
+           (satchi.gateway:make-state-set :state-hash hash)
+           :filter-state
+           (make-instance 'filter-state)))
+    (gui-update service)))
 
-(defun make-service (on-update-view)
-  (make-instance 'service
-                 :state (make-state)
-                 :on-update-view on-update-view))
+(defun fetch-icon (service gw-id icon-url)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (let ((gw (find gw-id (service-gateways service)
+                      :key #'satchi.gateway:gateway-id
+                      ;; gw-id
+                      :test #'string=)))
+        (satchi.notification:fetch-icon
+         (satchi.gateway:gateway-client gw) icon-url)))))
 
 (defun handle-request (service msg-string)
   (let* ((msg (jsown:parse msg-string))
          (op (jsown:val msg "op"))
          (args (jsown:val-safe msg "args")))
     (cond ((string= op "Notifications")
-           (satchi.notification-list:view-latest
-            service))
+           (view-latest service))
           ((string= op "MarkAsRead")
-           (satchi.notification-list::mark-as-read
-            service
-            (jsown:val args "gatewayId")
-            (jsown:val args "notificationId")))
+           (mark-as-read service
+                         (jsown:val args "gatewayId")
+                         (jsown:val args "notificationId")))
           ((string= op "ToggleMentioned")
-           (satchi.filter:toggle-mentioned
-            service))
+           (toggle-mentioned service))
           (t
            (print msg)))))

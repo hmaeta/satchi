@@ -1,18 +1,23 @@
 (defpackage :satchi.filter
   (:use :cl)
-  (:export :make-state
-           :service-update
-           :toggle-mentioned))
+  (:export :gui-update
+           :state
+           :update-mentioned
+           :update-keyword
+           :toggle-mentioned
+           :change-keyword))
 (in-package :satchi.filter)
 
-(defstruct state
-  is-mention-only)
+(defgeneric gui-update (renderer))
 
-(defgeneric service-update (service fn))
+(defclass state () ())
+(defgeneric update-mentioned (state fn))
+(defgeneric update-keyword (state str))
 
-(defun toggle-mentioned (service)
-  (service-update service
-   (lambda (s)
-     (make-state
-      :is-mention-only
-      (not (state-is-mention-only s))))))
+(defun toggle-mentioned (&key state renderer)
+  (update-mentioned state #'not)
+  (gui-update renderer))
+
+(defun change-keyword (keyword &key state renderer)
+  (update-keyword state keyword)
+  (gui-update renderer))

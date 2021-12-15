@@ -3,13 +3,12 @@
   :pathname "src"
   :components
   ((:file "notification")
-   (:file "client/rss")
+   (:file "time-machine")
+   (:file "desktop-notification")
    (:file "notification-list")
    (:file "filter")
+   (:file "gateway")
+   (:file "view")
    (:file "main"))
   :depends-on (:jsown
-               :dexador
-               :quri
-               :local-time
-               :do-urlencode
-               :rss))
+               :local-time))
