@@ -134,24 +134,15 @@
   (setf (service-state service)
         (make-loading-state))
   (gui-update service)
-  (let ((hash (make-hash-table :test #'equal))) ;;gw-id
+  (let ((gw-state-set (satchi.gateway:make-state-set nil)))
     (dolist (gw (service-gateways service))
       (let ((ntfs (satchi.notification:fetch-notifications
-                   (satchi.gateway:gateway-client gw)))
-            (holder (satchi.gateway:make-holder gw)))
-        (setf (gethash (satchi.gateway:gateway-id gw) hash)
-              (make-instance 'satchi.gateway:state
-               :holder (satchi.gateway:holder-add-to-unread
-                        holder
-                        ntfs)
-               :sent-ntfs nil
-               :offset ""))))
+                   (satchi.gateway:gateway-client gw))))
+        (satchi.gateway:state-set-add-state gw-state-set gw ntfs)))
     (setf (service-state service)
           (make-viewing-state
-           :gateway-state-set
-           (satchi.gateway:make-state-set :state-hash hash)
-           :filter-state
-           (make-instance 'filter-state)))
+           :gateway-state-set gw-state-set
+           :filter-state (make-instance 'filter-state)))
     (gui-update service)))
 
 (defun fetch-icon (service gw-id icon-url)
