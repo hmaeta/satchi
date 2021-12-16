@@ -33,9 +33,9 @@
 (defun stop ()
   (when *handler*
     (clack:stop *handler*))
-  (setq *service* nil)
   (when *worker-thread*
-    (bt:destroy-thread *worker-thread*)
+    (ignore-errors
+      (bt:destroy-thread *worker-thread*))
     (setq *worker-thread* nil)))
 
 (defun start (&key gateways)

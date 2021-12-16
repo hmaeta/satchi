@@ -41,7 +41,9 @@
     (satchi.gateway:state-set-unread-list
      gw-state-set #'satchi.view:make-item
      :is-mention-only
-     (filter-state-is-mention-only filter-state))))
+     (filter-state-is-mention-only filter-state)
+     :keyword
+     (filter-state-keyword filter-state))))
 
 (defun viewing-state-gateway-state-ref (state gw-id)
   (make-gateway-state-ref
@@ -93,7 +95,7 @@
        :state (viewing-state-filter-state state)
        :renderer service))))
 
-(defun change-keyword (service keyword)
+(defun change-filter-keyword (service keyword)
   (let ((state (service-state service)))
     (when (typep state 'viewing-state)
       (satchi.filter:change-keyword keyword
@@ -185,6 +187,9 @@
          (args (jsown:val-safe msg "args")))
     (cond ((string= op "Notifications")
            (view-latest service))
+          ((string= op "ChangeFilterKeyword")
+           (change-filter-keyword service
+                                  (jsown:val args "keyword")))
           ((string= op "MarkAsRead")
            (mark-as-read service
                          (jsown:val args "gatewayId")
