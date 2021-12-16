@@ -2,8 +2,6 @@
   (:use :cl)
   (:export :state
            :add-to-pooled
-           :add-to-unread
-           :mark
            :gui-update
            :mark-as-read
            :fetch-back-to-unread

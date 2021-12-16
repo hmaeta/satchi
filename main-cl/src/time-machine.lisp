@@ -9,7 +9,7 @@
 (defgeneric update-offset (state fn))
 
 (defun fetch-back-to-unread (&key client state)
-  (state-update-offset state
+  (update-offset state
    (lambda (offset)
      (declare (ignore offset)) ;; todo
      (destructuring-bind (ntfs next-offset)

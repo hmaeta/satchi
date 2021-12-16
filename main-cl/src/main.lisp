@@ -125,6 +125,13 @@
               :state gw-state
               :renderer service))))))))
 
+(defun view-incoming-notifications (service)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (let ((state-set (viewing-state-gateway-state-set state)))
+        (satchi.gateway:state-set-pooled-flush state-set))
+      (gui-update service))))
+
 (defun send-desktop-notification (service)
   (let ((state (service-state service)))
     (when (typep state 'viewing-state)
@@ -175,5 +182,7 @@
                          (jsown:val args "notificationId")))
           ((string= op "ToggleMentioned")
            (toggle-mentioned service))
+          ((string= op "ViewIncomingNotifications")
+           (view-incoming-notifications service))
           (t
            (print msg)))))

@@ -16,7 +16,7 @@
          " source text NOT NULL,"
          " title text NOT NULL,"
          " message text NOT NULL,"
-         " mentioned_p integer NOT NULL,"
+         " is_mentioned integer NOT NULL,"
          " PRIMARY KEY (gateway_id, notification_id)"
          ")"))
     (sqlite:execute-non-query
@@ -39,13 +39,22 @@
        "   gateway_id = (?) AND notification_id = (?)")
    gw-id ntf-id))
 
+(defun ntf-pooled-to-unread (db)
+  (sqlite:execute-non-query
+   db (concatenate 'string
+       " UPDATE ntf_state"
+       " SET"
+       "   state = 'UNREAD'"
+       " WHERE"
+       "   state = 'POOLED'")))
+
 (defun ntf-add (db gw-id ntfs)
   (dolist (ntf ntfs)
     (sqlite:execute-non-query
      db (concatenate 'string
          " INSERT OR IGNORE INTO ntf"
          "  (gateway_id, notification_id,"
-         "   timestamp, source, title, message, mentioned_p)"
+         "   timestamp, source, title, message, is_mentioned)"
          " VALUES (?, ?, ?, ?, ?, ?, ?)")
      gw-id
      (satchi.notification:notification-id ntf)
@@ -79,7 +88,7 @@
      (satchi.notification:notification-title ntf)
      ;; message
      (satchi.notification:notification-message ntf)
-     ;; mentioned-p
+     ;; is_mentioned
      (if (satchi.notification:notification-mentioned-p ntf) 1 0))))
 
 (defun ntf-add-to-pooled (db gw-id ntfs)
@@ -104,45 +113,50 @@
          "  (?, ?, 'UNREAD')")
      gw-id (satchi.notification:notification-id ntf))))
 
-(defun ntf-unread-list (db convert-fn &key is-mention-only)
-  (declare (ignore is-mention-only))
-  (let ((rows
-         (sqlite:execute-to-list
-          db (concatenate 'string
-              " SELECT * FROM ntf"
-              " INNER JOIN"
-              "     ntf_state"
-              "   ON"
-              "     ntf.gateway_id = ntf_state.gateway_id"
-              "   AND"
-              "     ntf.notification_id = ntf_state.notification_id"
-              " WHERE"
-              "   ntf_state.state = 'UNREAD'"))))
-    (loop for (gw-id ntf-id timestamp source title message mentioned-p)
-              in rows
-          for ntf = (satchi.notification:make-notification
-                     :id ntf-id
-                     :timestamp (local-time:parse-timestring timestamp)
-                     :source
-                     (let ((jsown (jsown:parse source)))
-                       (satchi.notification:make-source
-                        :name (jsown:val jsown "name")
-                        :url (jsown:val jsown "url")
-                        :icon
-                        (let ((icon-jsown (jsown:val jsown "icon")))
-                          (when icon-jsown
-                            (let ((type (jsown:val icon-jsown "type")))
-                              (cond ((string= type "icon")
-                                     (satchi.notification:make-icon
-                                      :url (jsown:val icon-jsown "url")))
-                                    ((string= type "private-icon")
-                                     (satchi.notification:make-private-icon
-                                      :url (jsown:val icon-jsown "url")))
-                                    (t (assert nil))))))))
-                     :title title
-                     :message message
-                     :mentioned-p mentioned-p)
-          collect (funcall convert-fn :gateway-id gw-id :ntf ntf))))
+(defun ntf-unread-list-query (db is-mention-only)
+  (sqlite:execute-to-list
+   db (with-output-to-string (s)
+        (labels ((w (line)
+                   (write-line line s)))
+          (w " SELECT * FROM ntf")
+          (w " INNER JOIN")
+          (w "     ntf_state")
+          (w "   ON")
+          (w "     ntf.gateway_id = ntf_state.gateway_id")
+          (w "   AND")
+          (w "     ntf.notification_id = ntf_state.notification_id")
+          (w " WHERE")
+          (w "   ntf_state.state = 'UNREAD'")
+          (when is-mention-only
+            (w " AND")
+            (w "   ntf.is_mentioned = 1"))))))
+
+(defun ntf-unread-list (db convert-fn is-mention-only)
+  (loop for (gw-id ntf-id timestamp source title message mentioned-p)
+            in (ntf-unread-list-query db is-mention-only)
+        for ntf = (satchi.notification:make-notification
+                   :id ntf-id
+                   :timestamp (local-time:parse-timestring timestamp)
+                   :source
+                   (let ((jsown (jsown:parse source)))
+                     (satchi.notification:make-source
+                      :name (jsown:val jsown "name")
+                      :url (jsown:val jsown "url")
+                      :icon
+                      (let ((icon-jsown (jsown:val jsown "icon")))
+                        (when icon-jsown
+                          (let ((type (jsown:val icon-jsown "type")))
+                            (cond ((string= type "icon")
+                                   (satchi.notification:make-icon
+                                    :url (jsown:val icon-jsown "url")))
+                                  ((string= type "private-icon")
+                                   (satchi.notification:make-private-icon
+                                    :url (jsown:val icon-jsown "url")))
+                                  (t (assert nil))))))))
+                   :title title
+                   :message message
+                   :mentioned-p mentioned-p)
+        collect (funcall convert-fn :gateway-id gw-id :ntf ntf)))
 
 (defun ntf-pooled-count (db)
   (sqlite:execute-single
@@ -163,20 +177,16 @@
     :initarg :update-sent-ntfs)))
 
 (defmethod satchi.notification-list:mark ((s state) ntf-id)
-  (with-slots (mark) s
-    (funcall mark ntf-id)))
+  (funcall (slot-value s 'mark) ntf-id))
 
 (defmethod satchi.notification-list:add-to-pooled ((s state) ntfs)
-  (with-slots (add-to-pooled) s
-    (funcall add-to-pooled ntfs)))
+  (funcall (slot-value s 'add-to-pooled) ntfs))
 
 (defmethod satchi.time-machine:update-offset ((s state) fn)
-  (with-slots (update-offset) s
-    (funcall update-offset fn)))
+  (funcall (slot-value s 'update-offset)))
 
 (defmethod satchi.desktop-notification:update-sent ((s state) fn)
-  (with-slots (update-sent-ntfs) s
-    (funcall update-sent-ntfs fn)))
+  (funcall (slot-value s 'update-sent-ntfs)))
 
 (defstruct state-set pathname offset-hash sent-ntfs-hash)
 
@@ -196,10 +206,8 @@
                                                (gw-id t)
                                                (fn function))
   (with-slots (pathname offset-hash sent-ntfs-hash) state-set
-    (symbol-macrolet ((offset
-                       (gethash gw-id offset-hash ""))
-                      (sent-ntfs
-                       (gethash gw-id sent-ntfs-hash)))
+    (symbol-macrolet ((offset (gethash gw-id offset-hash ""))
+                      (sent-ntfs (gethash gw-id sent-ntfs-hash)))
       (sqlite:with-open-database (db pathname)
         (labels ((mark (ntf-id)
                    (ntf-mark db gw-id ntf-id))
@@ -212,18 +220,23 @@
                      (ntf-add-to-unread db gw-id ntfs)))
                  (update-sent-ntfs (fn)
                    (setf sent-ntfs (funcall fn sent-ntfs))))
-          (funcall fn (make-instance 'state
-                       :mark #'mark
-                       :add-to-pooled #'add-to-pooled
-                       :update-offset #'update-offset
-                       :update-sent-ntfs #'update-sent-ntfs)))))))
+          (let ((state (make-instance 'state
+                        :mark #'mark
+                        :add-to-pooled #'add-to-pooled
+                        :update-offset #'update-offset
+                        :update-sent-ntfs #'update-sent-ntfs)))
+            (funcall fn state)))))))
 
 (defmethod satchi.gateway:state-set-unread-list ((state-set state-set)
                                                  convert-fn
                                                  &key is-mention-only)
   (sqlite:with-open-database (db (state-set-pathname state-set))
-    (ntf-unread-list db convert-fn :is-mention-only is-mention-only)))
+    (ntf-unread-list db convert-fn is-mention-only)))
 
 (defmethod satchi.gateway:state-set-pooled-count ((state-set state-set))
   (sqlite:with-open-database (db (state-set-pathname state-set))
     (ntf-pooled-count db)))
+
+(defmethod satchi.gateway:state-set-pooled-flush ((state-set state-set))
+  (sqlite:with-open-database (db (state-set-pathname state-set))
+    (ntf-pooled-to-unread db)))

@@ -9,6 +9,7 @@
            :state-set-get-state
            :state-set-unread-list
            :state-set-pooled-count
+           :state-set-pooled-flush
            :make-state-set))
 (in-package :satchi.gateway)
 
@@ -20,3 +21,4 @@
 (defgeneric state-set-unread-list (state-set convert-fn
                                    &key is-mention-only))
 (defgeneric state-set-pooled-count (state-set))
+(defgeneric state-set-pooled-flush (state-set))
