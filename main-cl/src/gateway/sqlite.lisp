@@ -205,17 +205,19 @@
   (funcall (slot-value s 'add-to-pooled) ntfs))
 
 (defmethod satchi.time-machine:update-offset ((s state) fn)
-  (funcall (slot-value s 'update-offset)))
+  (funcall (slot-value s 'update-offset) fn))
 
 (defmethod satchi.desktop-notification:update-sent ((s state) fn)
-  (funcall (slot-value s 'update-sent-ntfs)))
+  (funcall (slot-value s 'update-sent-ntfs) fn))
 
 (defstruct state-set pathname offset-hash sent-ntfs-hash)
 
-(defmethod satchi.gateway:make-state-set (type)
-  (make-state-set :pathname *db-path*
-                  :offset-hash (make-hash-table :test #'equal)
-                  :sent-ntfs-hash (make-hash-table :test #'equal)))
+(setf satchi.gateway:*make-state-set-impl*
+      (lambda ()
+        (make-state-set
+         :pathname *db-path*
+         :offset-hash (make-hash-table :test #'equal)
+         :sent-ntfs-hash (make-hash-table :test #'equal))))
 
 (defmethod satchi.gateway:state-set-add-state ((state-set state-set)
                                                (gw satchi.gateway:gateway)

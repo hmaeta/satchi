@@ -163,13 +163,15 @@
 
 (defstruct state-set state-hash)
 
+(setf satchi.gateway:*make-state-set-impl*
+      (lambda ()
+        (make-state-set
+         :state-hash (make-hash-table :test #'equal))))
+
 (defun make-holder (gw)
   (if (satchi.gateway:gateway-is-managed gw)
       (make-instance 'managed-holder)
       (make-instance 'unmanaged-holder)))
-
-(defmethod satchi.gateway:make-state-set (type)
-  (make-state-set :state-hash (make-hash-table :test #'equal)))
 
 (defmethod satchi.gateway:state-set-add-state ((state-set state-set)
                                                (gw satchi.gateway:gateway)

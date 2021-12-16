@@ -160,7 +160,7 @@
   (setf (service-state service)
         (make-loading-state))
   (gui-update service)
-  (let ((gw-state-set (satchi.gateway:make-state-set nil)))
+  (let ((gw-state-set (satchi.gateway:make-state-set)))
     (dolist (gw (service-gateways service))
       (let ((ntfs (satchi.notification:fetch-notifications
                    (satchi.gateway:gateway-client gw))))
