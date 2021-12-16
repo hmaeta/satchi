@@ -1,7 +1,7 @@
 (defpackage :satchi.notification-list
   (:use :cl)
   (:export :ref
-           :state
+           :holder
            :mark
            :add-to-pooled
            :gui-update
@@ -12,20 +12,20 @@
 
 (defgeneric gui-update (renderer))
 
-(defgeneric ref (state-ref fn))
+(defgeneric ref (holder-ref fn))
 
-(defclass state () ())
-(defgeneric mark (state ntf-id))
-(defgeneric add-to-pooled (state ntfs))
+(defclass holder () ())
+(defgeneric mark (holder ntf-id))
+(defgeneric add-to-pooled (holder ntfs))
 
-(defun mark-as-read (ntf-id &key client state-ref renderer)
-  (ref state-ref (lambda (state)
-                   (mark state ntf-id)))
+(defun mark-as-read (ntf-id &key client holder-ref renderer)
+  (ref holder-ref (lambda (holder)
+                    (mark holder ntf-id)))
   (gui-update renderer)
   (satchi.notification:mark-as-read client ntf-id))
 
-(defun fetch-to-pooled (&key client state-ref renderer)
+(defun fetch-to-pooled (&key client holder-ref renderer)
   (let ((ntfs (satchi.notification:fetch-notifications client)))
-    (ref state-ref (lambda (state)
-                     (add-to-pooled state ntfs))))
+    (ref holder-ref (lambda (holder)
+                      (add-to-pooled holder ntfs))))
   (gui-update renderer))

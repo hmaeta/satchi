@@ -24,9 +24,9 @@
 
 ;;;;
 
-(defstruct gateway-state-ref gw-id state-set)
+(defstruct gateway-holder-ref gw-id state-set)
 
-(defmethod satchi.notification-list:ref ((ref gateway-state-ref) fn)
+(defmethod satchi.notification-list:ref ((ref gateway-holder-ref) fn)
   (with-slots (gw-id state-set) ref
     (satchi.gateway:state-set-get-state state-set gw-id fn)))
 
@@ -45,8 +45,8 @@
      :keyword
      (filter-state-keyword filter-state))))
 
-(defun viewing-state-gateway-state-ref (state gw-id)
-  (make-gateway-state-ref
+(defun viewing-state-gateway-holder-ref (state gw-id)
+  (make-gateway-holder-ref
    :gw-id gw-id
    :state-set (viewing-state-gateway-state-set state)))
 
@@ -110,7 +110,7 @@
                       :test #'string=))) ;; gw-id
         (satchi.notification-list:mark-as-read ntf-id
          :client (satchi.gateway:gateway-client gw)
-         :state-ref (viewing-state-gateway-state-ref state gw-id)
+         :holder-ref (viewing-state-gateway-holder-ref state gw-id)
          :renderer service)))))
 
 (defun fetch-to-pooled (service)
@@ -121,7 +121,7 @@
                          (client satchi.gateway:gateway-client)) gw
           (satchi.notification-list:fetch-to-pooled
            :client client
-           :state-ref (viewing-state-gateway-state-ref state id)
+           :holder-ref (viewing-state-gateway-holder-ref state id)
            :renderer service))))))
 
 (defun fetch-back-to-unread (service)

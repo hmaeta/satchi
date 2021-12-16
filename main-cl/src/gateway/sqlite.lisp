@@ -150,7 +150,7 @@
                    (push (format nil "%~A%" keyword) args)
                    (w " )"))
                  (w " ORDER BY ntf.timestamp_universal DESC")
-                 (w "LIMIT 100")))))
+                 (w " LIMIT 100")))))
       (apply #'sqlite:execute-to-list db q args))))
 
 (defun parse-rows (convert-fn rows)
@@ -187,7 +187,7 @@
 ;;;
 
 (defclass state (satchi.time-machine:state
-                 satchi.notification-list:state
+                 satchi.notification-list:holder
                  satchi.desktop-notification:state)
   ((mark
     :initarg :mark)
