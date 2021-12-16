@@ -190,8 +190,10 @@
                   :offset "")))
       (setf (gethash gw-id (state-set-state-hash state-set)) state))))
 
-(defmethod satchi.gateway:state-set-get-state (state-set gw-id)
-  (gethash gw-id (state-set-state-hash state-set)))
+(defmethod satchi.gateway:state-set-get-state ((state-set state-set)
+                                               (gw-id t)
+                                               (fn function))
+  (funcall fn (gethash gw-id (state-set-state-hash state-set))))
 
 (defmethod satchi.gateway:state-set-unread-list ((state-set state-set)
                                                  convert-fn

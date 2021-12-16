@@ -16,7 +16,7 @@
 
 (defgeneric make-state-set (type))
 (defgeneric state-set-add-state (state-set gw ntfs))
-(defgeneric state-set-get-state (state-set gw-id))
+(defgeneric state-set-get-state (state-set gw-id fn))
 (defgeneric state-set-unread-list (state-set convert-fn
                                    &key is-mention-only))
 (defgeneric state-set-pooled-count (state-set))
