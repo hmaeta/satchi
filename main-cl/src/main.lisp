@@ -24,12 +24,16 @@
 
 ;;;;
 
+(defstruct gateway-state-ref gw-id state-set)
+
+(defmethod satchi.notification-list:ref ((ref gateway-state-ref) fn)
+  (with-slots (gw-id state-set) ref
+    (satchi.gateway:state-set-get-state state-set gw-id fn)))
+
+;;;;
+
 (defstruct loading-state)
 (defstruct viewing-state gateway-state-set filter-state)
-
-(defun viewing-state-gateway-state (gw-id state fn)
-  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
-    (satchi.gateway:state-set-get-state gw-state-set gw-id fn)))
 
 (defun viewing-state-items (state)
   (with-accessors ((filter-state viewing-state-filter-state)
@@ -38,6 +42,15 @@
      gw-state-set #'satchi.view:make-item
      :is-mention-only
      (filter-state-is-mention-only filter-state))))
+
+(defun viewing-state-gateway-state-ref (state gw-id)
+  (make-gateway-state-ref
+   :gw-id gw-id
+   :state-set (viewing-state-gateway-state-set state)))
+
+(defun viewing-state-gateway-state (state gw-id fn)
+  (with-slots (state-set) state
+    (satchi.gateway:state-set-get-state state-set gw-id fn)))
 
 (defun viewing-state-incoming-notification-count (state)
   (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
@@ -93,12 +106,21 @@
       (let ((gw (find gw-id (service-gateways service)
                       :key #'satchi.gateway:gateway-id
                       :test #'string=))) ;; gw-id
-        (viewing-state-gateway-state gw-id state
-         (lambda (gw-state)
-           (satchi.notification-list:mark-as-read ntf-id
-            :client (satchi.gateway:gateway-client gw)
-            :state gw-state
-            :renderer service)))))))
+        (satchi.notification-list:mark-as-read ntf-id
+         :client (satchi.gateway:gateway-client gw)
+         :state-ref (viewing-state-gateway-state-ref state gw-id)
+         :renderer service)))))
+
+(defun fetch-to-pooled (service)
+  (let ((state (service-state service)))
+    (when (typep state 'viewing-state)
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (satchi.notification-list:fetch-to-pooled
+           :client client
+           :state-ref (viewing-state-gateway-state-ref state id)
+           :renderer service))))))
 
 (defun fetch-back-to-unread (service)
   (let ((state (service-state service)))
@@ -111,19 +133,6 @@
              (satchi.time-machine:fetch-back-to-unread
               :client client
               :state gw-state))))))))
-
-(defun fetch-to-pooled (service)
-  (let ((state (service-state service)))
-    (when (typep state 'viewing-state)
-      (dolist (gw (service-gateways service))
-        (with-accessors ((id satchi.gateway:gateway-id)
-                         (client satchi.gateway:gateway-client)) gw
-          (viewing-state-gateway-state id state
-           (lambda (gw-state)
-             (satchi.notification-list:fetch-to-pooled
-              :client client
-              :state gw-state
-              :renderer service))))))))
 
 (defun view-incoming-notifications (service)
   (let ((state (service-state service)))

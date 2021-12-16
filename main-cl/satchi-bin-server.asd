@@ -7,4 +7,5 @@
                :websocket-driver
                :do-urlencode
                :quri
+               :bordeaux-threads
                :satchi))

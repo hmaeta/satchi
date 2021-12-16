@@ -13,6 +13,7 @@
          " gateway_id char(36) NOT NULL,"
          " notification_id char(256) NOT NULL,"
          " timestamp text NOT NULL,"
+         " timestamp_universal integer NOT NULL,"
          " source text NOT NULL,"
          " title text NOT NULL,"
          " message text NOT NULL,"
@@ -54,13 +55,17 @@
      db (concatenate 'string
          " INSERT OR IGNORE INTO ntf"
          "  (gateway_id, notification_id,"
-         "   timestamp, source, title, message, is_mentioned)"
-         " VALUES (?, ?, ?, ?, ?, ?, ?)")
+         "   timestamp, timestamp_universal,"
+         "   source, title, message, is_mentioned)"
+         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
      gw-id
      (satchi.notification:notification-id ntf)
      ;; timestamp
      (local-time:format-timestring
       nil
+      (satchi.notification:notification-timestamp ntf))
+     ;; timestamp_universal
+     (local-time:timestamp-to-universal
       (satchi.notification:notification-timestamp ntf))
      ;; source
      (let ((source (satchi.notification:notification-source ntf)))
@@ -118,7 +123,12 @@
    db (with-output-to-string (s)
         (labels ((w (line)
                    (write-line line s)))
-          (w " SELECT * FROM ntf")
+          (w " SELECT")
+          (w "   ntf.gateway_id, ntf.notification_id,")
+          (w "   ntf.timestamp, ntf.source,")
+          (w "   ntf.title, ntf.message, ntf.is_mentioned")
+          (w " FROM")
+          (w "   ntf")
           (w " INNER JOIN")
           (w "     ntf_state")
           (w "   ON")
@@ -129,7 +139,8 @@
           (w "   ntf_state.state = 'UNREAD'")
           (when is-mention-only
             (w " AND")
-            (w "   ntf.is_mentioned = 1"))))))
+            (w "   ntf.is_mentioned = 1"))
+          (w " ORDER BY ntf.timestamp_universal DESC")))))
 
 (defun ntf-unread-list (db convert-fn is-mention-only)
   (loop for (gw-id ntf-id timestamp source title message mentioned-p)

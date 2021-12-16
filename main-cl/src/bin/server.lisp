@@ -28,9 +28,15 @@
 
 (defvar *ws-list* nil)
 
+(defvar *worker-thread* nil)
+
 (defun stop ()
   (when *handler*
-    (clack:stop *handler*)))
+    (clack:stop *handler*))
+  (setq *service* nil)
+  (when *worker-thread*
+    (bt:destroy-thread *worker-thread*)
+    (setq *worker-thread* nil)))
 
 (defun start (&key gateways)
   (stop)
@@ -54,6 +60,13 @@
                           ("value" ntfs-jsown)))))
              (dolist (ws *ws-list*)
                (websocket-driver:send ws ntfs))))))
+  (setq *worker-thread*
+        (bt:make-thread
+         (lambda ()
+           (loop do (progn
+                      (when *service*
+                        (satchi:fetch-to-pooled *service*))
+                      (sleep 15))))))
   (setq *handler*
         (clack:clackup
          (let ((service *service*))

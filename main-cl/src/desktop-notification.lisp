@@ -14,7 +14,7 @@
 
 (defun run (&key client sender state)
   (let ((ntfs (satchi.notification:fetch-notifications client)))
-    (state-update-sent state
+    (update-sent state
      (lambda (sent-ntfs)
        ;; todo
        (sender-send sender ntfs)
