@@ -17,8 +17,10 @@
            :source-url
            :icon
            :icon-url
+           :make-icon
            :private-icon
            :private-icon-url
+           :make-private-icon
            :make-source))
 (in-package :satchi.notification)
 
