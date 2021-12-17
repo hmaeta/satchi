@@ -1,43 +1,39 @@
 (defpackage :satchi.view.ncurses
   (:use :cl)
-  (:export :paint))
+  (:export :loading
+           :viewing
+           :viewing-ntfs
+           :ntf-title
+           :ntf-message
+           :ntf-timestamp
+           :ntf-source-name
+           :ntf-source-url
+           :make))
 (in-package :satchi.view.ncurses)
 
-(defgeneric paint (state wnd))
+(defgeneric make (state))
 
-(defmethod paint ((state satchi:loading-state) wnd)
-  (multiple-value-bind (width height)
-      (charms:window-dimensions wnd)
-    (let* ((message "Loading...")
-           (length/2 (floor (length message) 2)))
-      (charms:write-string-at-point wnd
-                                    message
-                                    (- (floor width 2) length/2)
-                                    (floor height 2)))))
+(defstruct loading)
 
-(defmethod paint ((state satchi:viewing-state) wnd)
-  (labels ((w (str x y)
-             (charms:write-string-at-point wnd str x y)))
-    (with-accessors
-          ((gw-state-set satchi:viewing-state-gateway-state-set)) state
-      (let ((ntfs (satchi.gateway:state-set-unread-list
-                   gw-state-set
-                   (lambda (&key gateway-id ntf)
-                     (declare (ignore gateway-id))
-                     ntf)))
-            (y -1))
-        (dolist (ntf ntfs)
-          (w (satchi.notification:notification-title ntf)
-             0 (incf y))
-          (w (satchi.notification:notification-message ntf)
-             2 (incf y))
-          (incf y)
-          (w (local-time:format-timestring
-              nil (satchi.notification:notification-timestamp ntf))
-             2 (incf y))
-          (let ((source (satchi.notification:notification-source ntf)))
-            (w (satchi.notification:source-name source)
-               2 (incf y))
-            (w (satchi.notification:source-url source)
-               2 (incf y)))
-          (incf y))))))
+(defmethod make ((state satchi:loading-state))
+  (make-loading))
+
+
+(defstruct ntf title message timestamp source-name source-url)
+(defstruct viewing ntfs)
+
+(defmethod make ((state satchi:viewing-state))
+  (make-viewing
+   :ntfs
+   (satchi.gateway:state-set-unread-list
+    (satchi:viewing-state-gateway-state-set state)
+    (lambda (&key gateway-id ntf)
+      (declare (ignore gateway-id))
+      (let ((source (satchi.notification:notification-source ntf)))
+        (make-ntf
+         :title (satchi.notification:notification-title ntf)
+         :message (satchi.notification:notification-message ntf)
+         :timestamp (local-time:format-timestring
+                     nil (satchi.notification:notification-timestamp ntf))
+         :source-name (satchi.notification:source-name source)
+         :source-url (satchi.notification:source-url source)))))))

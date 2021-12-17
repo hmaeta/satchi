@@ -51,8 +51,9 @@
            (let ((v (jsown:to-json
                      (jsown:new-js
                        ("type" "UpdateView")
-                       ("value" (satchi.view.electron:json
-                                 (satchi:service-state service)))))))
+                       ("value" (satchi.view.electron-json:from
+                                 (satchi.view.electron:make
+                                  (satchi:service-state service))))))))
              (dolist (ws *ws-list*)
                (websocket-driver:send ws v))))
          :send-ntfs-fn

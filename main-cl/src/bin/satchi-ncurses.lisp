@@ -10,7 +10,14 @@
          (satchi.client.rss:make-client
           :url "https://news.yahoo.co.jp/rss/topics/top-picks.xml"))))
 
-(defvar *send-view-fn* nil)
+(defun get-service (update-view-fn)
+  (satchi:make-service
+   :gateways *gws*
+   :send-view-fn
+   (lambda (service)
+     (let ((state (satchi:service-state service)))
+       (let ((view (satchi.view.ncurses:make state)))
+         (funcall update-view-fn view))))))
 
 ;;  ros run -s satchi-bin-satchi-ncurses -e '(satchi.bin.satchi-ncurses:main)' -q
 (defun main ()
@@ -23,15 +30,11 @@
          (charms:enable-raw-input :interpret-control-characters t)
          (charms:enable-non-blocking-mode charms:*standard-window*)
          (let ((wnd charms:*standard-window*))
-           (labels ((update-view (service)
+           (labels ((update-view (view)
                       (charms:clear-window wnd)
-                      (satchi.view.ncurses:paint
-                       (satchi:service-state service)
-                       wnd)
+                      (satchi.view.ncurses-paint:run view wnd)
                       (charms:refresh-window wnd)))
-             (let* ((service (satchi:make-service
-                              :gateways *gws*
-                              :send-view-fn #'update-view))
+             (let* ((service (get-service #'update-view))
                     (threads (list (bt:make-thread
                                     (lambda ()
                                       (satchi:view-latest service))))))
