@@ -5,4 +5,5 @@
   ((:file "view/ncurses")
    (:file "view/ncurses-ui"))
   :depends-on (:cl-charms
-               :cl-setlocale))
+               :cl-setlocale
+               :bordeaux-threads))

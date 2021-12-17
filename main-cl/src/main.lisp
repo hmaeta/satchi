@@ -143,17 +143,19 @@
 
 (defun view-latest (service)
   (with-slots (state) service
-    (satchi.view-latest:run (service-gateways service)
-     :update-loading-fn
-     (lambda ()
-       (setf state (make-loading-state))
-       (gui-update service))
-     :update-viewing-fn
-     (lambda (gw-state-set)
-       (setf state (make-viewing-state
-                    :gateway-state-set gw-state-set
-                    :filter-state (make-instance 'filter-state)))
-       (gui-update service)))))
+    (if state
+        (gui-update service)
+        (satchi.view-latest:run (service-gateways service)
+         :update-loading-fn
+         (lambda ()
+           (setf state (make-loading-state))
+           (gui-update service))
+         :update-viewing-fn
+         (lambda (gw-state-set)
+           (setf state (make-viewing-state
+                        :gateway-state-set gw-state-set
+                        :filter-state (make-instance 'filter-state)))
+           (gui-update service))))))
 
 (defun fetch-icon (service gw-id icon-url)
   (let ((state (service-state service)))
