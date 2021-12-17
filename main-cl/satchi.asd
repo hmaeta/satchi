@@ -6,10 +6,9 @@
    (:file "time-machine")
    (:file "desktop-notification")
    (:file "notification-list")
-   (:file "view-latest")
    (:file "filter")
    (:file "gateway")
-   (:file "view")
+   (:file "view-latest")
    (:file "main"))
   :depends-on (:jsown
                :local-time))

@@ -1,6 +1,13 @@
 (defpackage :satchi
   (:use :cl)
   (:export :make-service
+           :service-state
+           :loading-state
+           :viewing-state
+           :viewing-state-filter-state
+           :viewing-state-gateway-state-set
+           :filter-state-is-mention-only
+           :filter-state-keyword
            :fetch-icon
            :fetch-to-pooled
            :handle-request))
@@ -35,24 +42,6 @@
 (defstruct loading-state)
 (defstruct viewing-state gateway-state-set filter-state)
 
-(defun state-view (state)
-  (etypecase state
-    (loading-state
-     (satchi.view:loading))
-    (viewing-state
-     (with-accessors
-           ((filter-state viewing-state-filter-state)
-            (gw-state-set viewing-state-gateway-state-set)) state
-       (satchi.view:viewing
-        :items (satchi.gateway:state-set-unread-list
-                gw-state-set #'satchi.view:make-item
-                :is-mention-only (filter-state-is-mention-only
-                                  filter-state)
-                :keyword (filter-state-keyword filter-state))
-        :is-mention-only (filter-state-is-mention-only filter-state)
-        :incoming-notification-count
-        (satchi.gateway:state-set-pooled-count gw-state-set))))))
-
 (defun viewing-state-gateway-holder-ref (state gw-id)
   (make-gateway-holder-ref
    :gw-id gw-id
@@ -67,8 +56,7 @@
 (defstruct service state gateways send-view-fn send-ntfs-fn)
 
 (defun gui-update (service)
-  (let ((view (state-view (service-state service))))
-    (funcall (service-send-view-fn service) view)))
+  (funcall (service-send-view-fn service) service))
 
 (defmethod satchi.notification-list:gui-update ((s service))
   (gui-update s))

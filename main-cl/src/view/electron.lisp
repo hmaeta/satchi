@@ -1,26 +1,24 @@
-(defpackage :satchi.view
+(defpackage :satchi.view.electron
   (:use :cl)
   (:export :icon-url
-           :loading
-           :viewing
-           :item
-           :item-gateway-id
-           :item-ntf
-           :make-item))
-(in-package :satchi.view)
+           :json))
+(in-package :satchi.view.electron)
 
 (defgeneric icon-url (icon gw-id))
 (defmethod icon-url (icon gw-id) nil)
 
-(defun loading ()
+(defgeneric json (state))
+
+(defmethod json ((state satchi:loading-state))
   (jsown:new-js
     ("stateClass" "LoadingState")))
 
+
 (defstruct item gateway-id ntf)
 
-(defun viewing (&key items
-                     is-mention-only
-                     incoming-notification-count)
+(defun json-viewing (&key items
+                          is-mention-only
+                          incoming-notification-count)
   (jsown:new-js
     ("stateClass" "ViewingState")
     ("stateData"
@@ -54,3 +52,17 @@
               ("id" (satchi.notification:notification-id n)))))
        ("incomingNotificationCount" incoming-notification-count)
        ("isMentionOnly" (if is-mention-only :t :f))))))
+
+(defmethod json ((state satchi:viewing-state))
+  (with-accessors
+        ((filter-state satchi:viewing-state-filter-state)
+         (gw-state-set satchi:viewing-state-gateway-state-set)) state
+    (json-viewing
+     :items (satchi.gateway:state-set-unread-list
+             gw-state-set #'satchi.view:make-item
+             :is-mention-only (satchi:filter-state-is-mention-only
+                               filter-state)
+             :keyword (satchi:filter-state-keyword filter-state))
+     :is-mention-only (satchi:filter-state-is-mention-only filter-state)
+     :incoming-notification-count
+     (satchi.gateway:state-set-pooled-count gw-state-set))))

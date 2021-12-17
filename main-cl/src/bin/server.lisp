@@ -9,12 +9,14 @@
           (do-urlencode:urlencode
            (satchi.notification:private-icon-url icon))))
 
-(defmethod satchi.view:icon-url ((icon satchi.notification:icon)
-                                 gw-id)
+(defmethod satchi.view.electron:icon-url
+    ((icon satchi.notification:icon)
+     gw-id)
   (satchi.notification:icon-url icon))
 
-(defmethod satchi.view:icon-url ((icon satchi.notification:private-icon)
-                                 gw-id)
+(defmethod satchi.view.electron:icon-url
+    ((icon satchi.notification:private-icon)
+     gw-id)
   (private-icon-url icon gw-id))
 
 (defun private-icon-url-decode (url)
@@ -45,11 +47,12 @@
          :state nil
          :gateways gateways
          :send-view-fn
-         (lambda (v-jsown)
+         (lambda (service)
            (let ((v (jsown:to-json
                      (jsown:new-js
                        ("type" "UpdateView")
-                       ("value" v-jsown)))))
+                       ("value" (satchi.view.electron:json
+                                 (satchi:service-state service)))))))
              (dolist (ws *ws-list*)
                (websocket-driver:send ws v))))
          :send-ntfs-fn
