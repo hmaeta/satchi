@@ -3,6 +3,6 @@
   :pathname "src"
   :components
   ((:file "view/ncurses")
-   (:file "view/ncurses-paint"))
+   (:file "view/ncurses-ui"))
   :depends-on (:cl-charms
-               :satchi))
+               :cl-setlocale))

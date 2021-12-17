@@ -1,7 +1,8 @@
 (defpackage :satchi
   (:use :cl)
-  (:export :make-service
+  (:export :service
            :service-state
+           :make-service
            :loading-state
            :viewing-state
            :viewing-state-filter-state
