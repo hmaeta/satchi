@@ -35,15 +35,23 @@
 (defstruct loading-state)
 (defstruct viewing-state gateway-state-set filter-state)
 
-(defun viewing-state-items (state)
-  (with-accessors ((filter-state viewing-state-filter-state)
-                   (gw-state-set viewing-state-gateway-state-set)) state
-    (satchi.gateway:state-set-unread-list
-     gw-state-set #'satchi.view:make-item
-     :is-mention-only
-     (filter-state-is-mention-only filter-state)
-     :keyword
-     (filter-state-keyword filter-state))))
+(defun state-view (state)
+  (etypecase state
+    (loading-state
+     (satchi.view:loading))
+    (viewing-state
+     (with-accessors
+           ((filter-state viewing-state-filter-state)
+            (gw-state-set viewing-state-gateway-state-set)) state
+       (satchi.view:viewing
+        :items (satchi.gateway:state-set-unread-list
+                gw-state-set #'satchi.view:make-item
+                :is-mention-only (filter-state-is-mention-only
+                                  filter-state)
+                :keyword (filter-state-keyword filter-state))
+        :is-mention-only (filter-state-is-mention-only filter-state)
+        :incoming-notification-count
+        (satchi.gateway:state-set-pooled-count gw-state-set))))))
 
 (defun viewing-state-gateway-holder-ref (state gw-id)
   (make-gateway-holder-ref
@@ -54,29 +62,13 @@
   (with-slots (state-set) state
     (satchi.gateway:state-set-get-state state-set gw-id fn)))
 
-(defun viewing-state-incoming-notification-count (state)
-  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
-    (satchi.gateway:state-set-pooled-count gw-state-set)))
-
 ;;;
 
 (defstruct service state gateways send-view-fn send-ntfs-fn)
 
 (defun gui-update (service)
-  (funcall (service-send-view-fn service)
-           (let ((state (service-state service)))
-             (etypecase state
-               (loading-state
-                (satchi.view:loading))
-               (viewing-state
-                (satchi.view:viewing
-                 :items
-                 (viewing-state-items state)
-                 :is-mention-only
-                 (filter-state-is-mention-only
-                  (viewing-state-filter-state state))
-                 :incoming-notification-count
-                 (viewing-state-incoming-notification-count state)))))))
+  (let ((view (state-view (service-state service))))
+    (funcall (service-send-view-fn service) view)))
 
 (defmethod satchi.notification-list:gui-update ((s service))
   (gui-update s))
@@ -157,19 +149,20 @@
               :state gw-state))))))))
 
 (defun view-latest (service)
-  (setf (service-state service)
-        (make-loading-state))
-  (gui-update service)
-  (let ((gw-state-set (satchi.gateway:make-state-set)))
-    (dolist (gw (service-gateways service))
-      (let ((ntfs (satchi.notification:fetch-notifications
-                   (satchi.gateway:gateway-client gw))))
-        (satchi.gateway:state-set-add-state gw-state-set gw ntfs)))
-    (setf (service-state service)
-          (make-viewing-state
-           :gateway-state-set gw-state-set
-           :filter-state (make-instance 'filter-state)))
-    (gui-update service)))
+  (with-slots (state) service
+    (if (not (null state))
+        (gui-update service)
+        (satchi.view-latest:run (service-gateways service)
+         :update-loading-fn
+         (lambda ()
+           (setf state (make-loading-state))
+           (gui-update service))
+         :update-viewing-fn
+         (lambda (gw-state-set)
+           (setf state (make-viewing-state
+                        :gateway-state-set gw-state-set
+                        :filter-state (make-instance 'filter-state)))
+           (gui-update service))))))
 
 (defun fetch-icon (service gw-id icon-url)
   (let ((state (service-state service)))
