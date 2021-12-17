@@ -6,4 +6,5 @@
   :depends-on (:satchi
                :satchi-view-ncurses
                :satchi-gateway-memory
-               :satchi-client-rss))
+               :satchi-client-rss
+               :cl-setlocale))

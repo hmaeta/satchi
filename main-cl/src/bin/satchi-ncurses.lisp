@@ -14,38 +14,38 @@
 
 ;;  ros run -s satchi-bin-satchi-ncurses -e '(satchi.bin.satchi-ncurses:main)' -q
 (defun main ()
-  (let ((view-needs-update nil)
-        (lock (bt:make-lock "view-needs-update")))
-    (setq *send-view-fn*
-          (lambda (s)
-            (declare (ignore s))
-            (bt:with-lock-held (lock)
-              (setf view-needs-update t))))
-    (let* ((service (satchi:make-service
-                     :gateways *gws*
-                     :send-view-fn *send-view-fn*))
-           (thread (bt:make-thread
-                    (lambda ()
-                      (sleep 3)
-                      (satchi:view-latest service)))))
-      (unwind-protect
-           (charms:with-curses ()
-             (charms:disable-echoing)
-             (charms:enable-raw-input :interpret-control-characters t)
-             (charms:enable-non-blocking-mode charms:*standard-window*)
-             (let ((wnd charms:*standard-window*))
+  ;; Japanese chacacters are written properly
+  (cl-setlocale:set-all-to-native)
+
+  (unwind-protect
+       (charms:with-curses ()
+         (charms:disable-echoing)
+         (charms:enable-raw-input :interpret-control-characters t)
+         (charms:enable-non-blocking-mode charms:*standard-window*)
+         (let ((wnd charms:*standard-window*))
+           (labels ((update-view (service)
+                      (charms:clear-window wnd)
+                      (satchi.view.ncurses:paint
+                       (satchi:service-state service)
+                       wnd)
+                      (charms:refresh-window wnd)))
+             (let* ((service (satchi:make-service
+                              :gateways *gws*
+                              :send-view-fn #'update-view))
+                    (threads (list (bt:make-thread
+                                    (lambda ()
+                                      (satchi:view-latest service))))))
                (loop named loop
                      for c = (charms:get-char wnd :ignore-error t)
                      do (progn
-                          (bt:with-lock-held (lock)
-                            (when view-needs-update
-                              (charms:clear-window wnd)
-                              (satchi.view.ncurses:paint
-                               (satchi:service-state service) wnd)
-                              (charms:refresh-window wnd)
-                              (setf view-needs-update nil)))
                           (case c
-                            ((nil) nil)
-                            ((#\q #\Q) (return-from loop)))))))
-        (ignore-errors
-         (bt:destroy-thread thread))))))
+                            ((#\r #\R)
+                             (push (bt:make-thread
+                                    (lambda ()
+                                      (satchi:view-latest service)))
+                                   threads))
+                            ((#\q #\Q)
+                             (return-from loop)))))
+               (mapc (lambda (th)
+                       (ignore-errors (bt:destroy-thread th)))
+                     threads)))))))

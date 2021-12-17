@@ -72,14 +72,10 @@
     (clrhash pooled-id-hash)))
 
 (defclass managed-holder (holder)
-  ((unread-list
-    :initform nil
-    :initarg :unread-list)
-   (pooled-list
-    :initform nil
-    :initarg :pooled-list)))
+  ((unread-list :initform nil)
+   (pooled-list :initform nil)))
 
-(defmethod holder-unread-list ((h unmanaged-holder))
+(defmethod holder-unread-list ((h managed-holder))
   (slot-value h 'unread-list))
 
 (defmethod holder-pooled-count ((h managed-holder))
