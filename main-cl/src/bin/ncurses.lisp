@@ -1,7 +1,7 @@
-(defpackage :satchi.bin.satchi-ncurses
+(defpackage :satchi.bin.ncurses
   (:use :cl)
   (:export :main))
-(in-package :satchi.bin.satchi-ncurses)
+(in-package :satchi.bin.ncurses)
 
 (defvar *threads* nil)
 
@@ -26,7 +26,7 @@
           (let ((view (satchi.view.ncurses:make state)))
             (funcall update-view-fn view))))))))
 
-;;  ros run -s satchi-bin-satchi-ncurses -e '(satchi.bin.satchi-ncurses:main)' -q
+;;  ros run -s satchi-bin-ncurses -e '(satchi.bin.ncurses:main)' -q
 (defun main ()
   (unwind-protect (ui-main)
     (mapc (lambda (th)
