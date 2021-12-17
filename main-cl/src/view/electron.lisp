@@ -59,7 +59,7 @@
          (gw-state-set satchi:viewing-state-gateway-state-set)) state
     (json-viewing
      :items (satchi.gateway:state-set-unread-list
-             gw-state-set #'satchi.view:make-item
+             gw-state-set #'make-item
              :is-mention-only (satchi:filter-state-is-mention-only
                                filter-state)
              :keyword (satchi:filter-state-keyword filter-state))

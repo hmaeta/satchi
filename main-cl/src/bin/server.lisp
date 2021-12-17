@@ -80,7 +80,7 @@
                         (push ws *ws-list*)
                         (websocket-driver:on :message ws
                          (lambda (msg)
-                           (satchi:handle-request service msg)))
+                           (satchi.server:handle-request service msg)))
                         (websocket-driver:on :error ws
                          (lambda (error)
                            (declare (ignore error))

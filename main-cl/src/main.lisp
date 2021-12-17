@@ -9,8 +9,12 @@
            :filter-state-is-mention-only
            :filter-state-keyword
            :fetch-icon
-           :fetch-to-pooled
-           :handle-request))
+           :view-latest
+           :change-filter-keyword
+           :mark-as-read
+           :toggle-mentioned
+           :view-incoming-notifications
+           :fetch-to-pooled))
 (in-package :satchi)
 
 (defclass filter-state (satchi.filter:state)
@@ -161,23 +165,3 @@
                       :test #'string=)))
         (satchi.notification:fetch-icon
          (satchi.gateway:gateway-client gw) icon-url)))))
-
-(defun handle-request (service msg-string)
-  (let* ((msg (jsown:parse msg-string))
-         (op (jsown:val msg "op"))
-         (args (jsown:val-safe msg "args")))
-    (cond ((string= op "Notifications")
-           (view-latest service))
-          ((string= op "ChangeFilterKeyword")
-           (change-filter-keyword service
-                                  (jsown:val args "keyword")))
-          ((string= op "MarkAsRead")
-           (mark-as-read service
-                         (jsown:val args "gatewayId")
-                         (jsown:val args "notificationId")))
-          ((string= op "ToggleMentioned")
-           (toggle-mentioned service))
-          ((string= op "ViewIncomingNotifications")
-           (view-incoming-notifications service))
-          (t
-           (print msg)))))

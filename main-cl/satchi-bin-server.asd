@@ -8,4 +8,7 @@
                :do-urlencode
                :quri
                :bordeaux-threads
-               :satchi))
+               :satchi
+               :satchi-server
+               :satchi-gateway-memory
+               :satchi-view-electron))

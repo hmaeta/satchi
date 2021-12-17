@@ -10,5 +10,4 @@
    (:file "gateway")
    (:file "view-latest")
    (:file "main"))
-  :depends-on (:jsown
-               :local-time))
+  :depends-on (:local-time))

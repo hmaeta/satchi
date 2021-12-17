@@ -4,4 +4,5 @@
   :components
   ((:file "gateway/sqlite"))
   :depends-on (:satchi
+               :jsown
                :sqlite))

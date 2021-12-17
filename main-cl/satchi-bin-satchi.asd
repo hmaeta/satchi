@@ -5,4 +5,7 @@
   ((:file "bin/satchi"))
   :depends-on (:do-urlencode
                :satchi
+               :satchi-server
+               :satchi-gateway-memory
+               :satchi-view-electron
                :satchi-client-rss))
