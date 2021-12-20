@@ -10,8 +10,5 @@
 
 (defun fetch-back-to-unread (&key client state)
   (update-offset state
-   (lambda (offset)
-     (declare (ignore offset)) ;; todo
-     (destructuring-bind (ntfs next-offset)
-         (satchi.notification:fetch-notifications client)
-       (list next-offset ntfs)))))
+    (lambda (offset)
+      (satchi.client:fetch-notifications-from client offset))))

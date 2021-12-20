@@ -52,18 +52,19 @@
                       (bt:with-lock-held (view-list-lock)
                         (setf view-list (append view-list (list view))))))
              (let ((service (funcall make-service #'update-view)))
-               (view-latest service)
-               (loop named loop
-                     for c = (charms:get-char wnd :ignore-error t)
-                     do (progn
-                          (bt:with-lock-held (view-list-lock)
-                            (when view-list
-                              (let ((view (pop view-list)))
-                                (charms:clear-window wnd)
-                                (paint view wnd)
-                                (charms:refresh-window wnd))))
-                          (case c
-                            ((#\r #\R)
-                             (view-latest service))
-                            ((#\q #\Q)
-                             (return-from loop)))))))))))
+               (when service
+                 (view-latest service)
+                 (loop named loop
+                       for c = (charms:get-char wnd :ignore-error t)
+                       do (progn
+                            (bt:with-lock-held (view-list-lock)
+                              (when view-list
+                                (let ((view (pop view-list)))
+                                  (charms:clear-window wnd)
+                                  (paint view wnd)
+                                  (charms:refresh-window wnd))))
+                            (case c
+                              ((#\r #\R)
+                               (view-latest service))
+                              ((#\q #\Q)
+                               (return-from loop))))))))))))

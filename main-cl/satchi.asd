@@ -3,6 +3,7 @@
   :pathname "src"
   :components
   ((:file "notification")
+   (:file "client")
    (:file "time-machine")
    (:file "desktop-notification")
    (:file "notification-list")

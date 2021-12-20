@@ -69,10 +69,6 @@
 (defmethod satchi.filter:gui-update ((s service))
   (gui-update s))
 
-(defmethod satchi.desktop-notification:sender-send ((s service) ntfs)
-  (funcall (service-send-ntfs-fn s) ntfs))
-
-
 (defun toggle-mentioned (service)
   (let ((state (service-state service)))
     (when (typep state 'viewing-state)
@@ -130,7 +126,8 @@
 
 (defun send-desktop-notification (service)
   (let ((state (service-state service)))
-    (when (typep state 'viewing-state)
+    (when (and (typep state 'viewing-state)
+               (service-send-ntfs-fn service))
       (dolist (gw (service-gateways service))
         (with-accessors ((id satchi.gateway:gateway-id)
                          (client satchi.gateway:gateway-client)) gw
@@ -138,8 +135,8 @@
            (lambda (gw-state)
              (satchi.desktop-notification:run
               :client client
-              :sender service
-              :state gw-state))))))))
+              :state gw-state
+              :send-ntfs-fn (service-send-ntfs-fn service)))))))))
 
 (defun view-latest (service)
   (with-slots (state) service
@@ -164,5 +161,5 @@
                       :key #'satchi.gateway:gateway-id
                       ;; gw-id
                       :test #'string=)))
-        (satchi.notification:fetch-icon
-         (satchi.gateway:gateway-client gw) icon-url)))))
+        (satchi.client:fetch-icon (satchi.gateway:gateway-client gw)
+                                  icon-url)))))

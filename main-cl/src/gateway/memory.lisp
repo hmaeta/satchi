@@ -149,9 +149,11 @@
 
 (defmethod satchi.time-machine:update-offset ((s state) fn)
   (with-slots (offset holder) s
-    (destructuring-bind (next-offset ntfs) (funcall fn offset)
-      (setf offset next-offset)
-      (holder-add-to-unread holder ntfs))))
+    (let ((result (funcall fn offset)))
+      (when result
+        (destructuring-bind (next-offset ntfs) result
+          (setf offset next-offset)
+          (holder-add-to-unread holder ntfs))))))
 
 (defmethod satchi.desktop-notification:update-sent ((s state) fn)
   (with-slots (sent-ntfs) s

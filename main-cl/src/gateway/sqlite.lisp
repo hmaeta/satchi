@@ -238,10 +238,11 @@
                  (add-to-pooled (ntfs)
                    (ntf-add-to-pooled db gw-id ntfs))
                  (update-offset (fn)
-                   (destructuring-bind (next-offset ntfs)
-                       (funcall fn offset)
-                     (setf offset next-offset)
-                     (ntf-add-to-unread db gw-id ntfs)))
+                   (let ((result (funcall fn offset)))
+                     (when result
+                       (destructuring-bind (next-offset ntfs) result
+                         (setf offset next-offset)
+                         (ntf-add-to-unread db gw-id ntfs)))))
                  (update-sent-ntfs (fn)
                    (setf sent-ntfs (funcall fn sent-ntfs))))
           (let ((state (make-instance 'state

@@ -1,9 +1,6 @@
 (defpackage :satchi.notification
   (:use :cl)
-  (:export :fetch-notifications
-           :fetch-icon
-           :mark-as-read
-           :notification
+  (:export :notification
            :notification-timestamp
            :notification-source
            :notification-title
@@ -15,21 +12,14 @@
            :source-name
            :source-icon
            :source-url
+           :make-source
            :icon
            :icon-url
            :make-icon
            :private-icon
            :private-icon-url
-           :make-private-icon
-           :make-source))
+           :make-private-icon))
 (in-package :satchi.notification)
-
-(defgeneric fetch-notifications (client))
-(defgeneric fetch-icon (client icon-id))
-(defgeneric mark-as-read (client ntf-id))
-
-(defmethod fetch-icon (client icon-id))
-(defmethod mark-as-read (client ntf-id))
 
 (defstruct notification
   timestamp
