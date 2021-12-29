@@ -4,6 +4,8 @@
   :components
   ((:file "notification")
    (:file "client")
+   (:file "presenter")
+   (:file "notification-holder")
    (:file "time-machine")
    (:file "desktop-notification")
    (:file "notification-list")

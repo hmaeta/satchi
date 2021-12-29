@@ -1,23 +1,20 @@
 (defpackage :satchi.filter
   (:use :cl)
-  (:export :gui-update
-           :state
+  (:export :state
            :update-mentioned
            :update-keyword
            :toggle-mentioned
            :change-keyword))
 (in-package :satchi.filter)
 
-(defgeneric gui-update (renderer))
-
 (defclass state () ())
 (defgeneric update-mentioned (state fn))
 (defgeneric update-keyword (state str))
 
-(defun toggle-mentioned (&key state renderer)
+(defun toggle-mentioned (&key state presenter)
   (update-mentioned state #'not)
-  (gui-update renderer))
+  (satchi.presenter:update presenter))
 
-(defun change-keyword (keyword &key state renderer)
+(defun change-keyword (keyword &key state presenter)
   (update-keyword state keyword)
-  (gui-update renderer))
+  (satchi.presenter:update presenter))

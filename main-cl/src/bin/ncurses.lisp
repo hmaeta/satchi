@@ -22,9 +22,9 @@
               :url "https://news.yahoo.co.jp/rss/topics/top-picks.xml")))
       :send-view-fn
       (lambda (service)
-        (let ((state (satchi:service-state service)))
-          (let ((view (satchi.view.ncurses:make state)))
-            (funcall update-view-fn view))))))))
+        (let ((view (satchi.view.ncurses:make
+                     (satchi:service-state service))))
+          (funcall update-view-fn view)))))))
 
 ;;  ros run -s satchi-bin-ncurses -e '(satchi.bin.ncurses:main)' -q
 (defun main ()

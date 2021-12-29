@@ -10,6 +10,7 @@
            :state-set-unread-list
            :state-set-pooled-count
            :state-set-pooled-flush
+           :state-set-state-ref
            :make-state-set
            :*make-state-set-impl*))
 (in-package :satchi.gateway)
@@ -26,3 +27,13 @@
 (defgeneric state-set-unread-list (state-set convert-fn &key))
 (defgeneric state-set-pooled-count (state-set))
 (defgeneric state-set-pooled-flush (state-set))
+
+(defstruct state-ref get-state)
+
+(defun state-set-state-ref (state-set gw-id)
+  (labels ((get-state (fn)
+             (state-set-get-state state-set gw-id fn)))
+    (make-state-ref :get-state #'get-state)))
+
+(defmethod satchi.notification-list:ref ((state-ref state-ref) fn)
+  (funcall (state-ref-get-state state-ref) fn))

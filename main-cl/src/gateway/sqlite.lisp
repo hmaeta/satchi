@@ -186,71 +186,68 @@
 
 ;;;
 
+(defstruct holder db gw-id)
+
+(defmethod satchi.notification-holder:mark ((h holder) ntf-id)
+  (ntf-mark (holder-db h) (holder-gw-id h) ntf-id))
+
+(defmethod satchi.notification-holder:add-to-unread ((h holder) ntfs)
+  (ntf-add-to-unread (holder-db h) (holder-gw-id h) ntfs))
+
+(defmethod satchi.notification-holder:add-to-pooled ((h holder) ntfs)
+  (ntf-add-to-pooled (holder-db h) (holder-gw-id h) ntfs))
+
+;;;
+
 (defclass state (satchi.time-machine:state
-                 satchi.notification-list:holder
+                 satchi.notification-list:state
                  satchi.desktop-notification:state)
-  ((mark
-    :initarg :mark)
-   (add-to-pooled
-    :initarg :add-to-pooled)
-   (update-offset
-    :initarg :update-offset)
-   (update-sent-ntfs
-    :initarg :update-sent-ntfs)))
+  ((gw-id
+    :initarg :gw-id)
+   (db
+    :initarg :db)
+   (offset-hash
+    :initarg :offset-hash)
+   (sent-ntfs-hash
+    :initarg :sent-ntfs-hash)))
+    
+(defmethod satchi.notification-list:state-holder ((s state))
+  (with-slots (gw-id db) s
+    (make-holder :db db :gw-id gw-id)))
 
-(defmethod satchi.notification-list:mark ((s state) ntf-id)
-  (funcall (slot-value s 'mark) ntf-id))
+(defmethod satchi.time-machine:state-offset ((s state))
+  (with-slots (gw-id offset-hash) s
+    (gethash gw-id offset-hash)))
 
-(defmethod satchi.notification-list:add-to-pooled ((s state) ntfs)
-  (funcall (slot-value s 'add-to-pooled) ntfs))
-
-(defmethod satchi.time-machine:update-offset ((s state) fn)
-  (funcall (slot-value s 'update-offset) fn))
+(defmethod satchi.time-machine:state-update-offset ((s state) new-offset)
+  (with-slots (gw-id offset-hash) s
+    (setf (gethash gw-id offset-hash) new-offset)))
 
 (defmethod satchi.desktop-notification:update-sent ((s state) fn)
-  (funcall (slot-value s 'update-sent-ntfs) fn))
+  (with-slots (gw-id sent-ntfs-hash) s
+    (let ((sent-ntfs (gethash gw-id sent-ntfs-hash)))
+      (setf (gethash gw-id sent-ntfs-hash) (funcall fn sent-ntfs)))))
+
+;;;
 
 (defstruct state-set pathname offset-hash sent-ntfs-hash)
-
-(setf satchi.gateway:*make-state-set-impl*
-      (lambda ()
-        (make-state-set
-         :pathname *db-path*
-         :offset-hash (make-hash-table :test #'equal)
-         :sent-ntfs-hash (make-hash-table :test #'equal))))
 
 (defmethod satchi.gateway:state-set-add-state ((state-set state-set)
                                                (gw satchi.gateway:gateway)
                                                (ntfs list))
   (sqlite:with-open-database (db (state-set-pathname state-set))
-    (let ((gw-id (satchi.gateway:gateway-id gw)))
-      (ntf-add-to-unread db gw-id ntfs))))
+    (ntf-add-to-unread db (satchi.gateway:gateway-id gw) ntfs)))
 
 (defmethod satchi.gateway:state-set-get-state ((state-set state-set)
                                                (gw-id t)
                                                (fn function))
   (with-slots (pathname offset-hash sent-ntfs-hash) state-set
-    (symbol-macrolet ((offset (gethash gw-id offset-hash ""))
-                      (sent-ntfs (gethash gw-id sent-ntfs-hash)))
-      (sqlite:with-open-database (db pathname)
-        (labels ((mark (ntf-id)
-                   (ntf-mark db gw-id ntf-id))
-                 (add-to-pooled (ntfs)
-                   (ntf-add-to-pooled db gw-id ntfs))
-                 (update-offset (fn)
-                   (let ((result (funcall fn offset)))
-                     (when result
-                       (destructuring-bind (next-offset ntfs) result
-                         (setf offset next-offset)
-                         (ntf-add-to-unread db gw-id ntfs)))))
-                 (update-sent-ntfs (fn)
-                   (setf sent-ntfs (funcall fn sent-ntfs))))
-          (let ((state (make-instance 'state
-                        :mark #'mark
-                        :add-to-pooled #'add-to-pooled
-                        :update-offset #'update-offset
-                        :update-sent-ntfs #'update-sent-ntfs)))
-            (funcall fn state)))))))
+    (sqlite:with-open-database (db pathname)
+      (funcall fn (make-instance 'state
+                   :gw-id gw-id
+                   :db db
+                   :offset-hash offset-hash
+                   :sent-ntfs-hash sent-ntfs-hash)))))
 
 (defmethod satchi.gateway:state-set-unread-list ((state-set state-set)
                                                  convert-fn
@@ -267,3 +264,10 @@
 (defmethod satchi.gateway:state-set-pooled-flush ((state-set state-set))
   (sqlite:with-open-database (db (state-set-pathname state-set))
     (ntf-pooled-to-unread db)))
+
+(setf satchi.gateway:*make-state-set-impl*
+      (lambda ()
+        (make-state-set
+         :pathname *db-path*
+         :offset-hash (make-hash-table :test #'equal)
+         :sent-ntfs-hash (make-hash-table :test #'equal))))

@@ -48,22 +48,23 @@
          :gateways gateways
          :send-view-fn
          (lambda (service)
-           (let ((v (jsown:to-json
-                     (jsown:new-js
-                       ("type" "UpdateView")
-                       ("value" (satchi.view.electron-json:from
-                                 (satchi.view.electron:make
-                                  (satchi:service-state service))))))))
-             (dolist (ws *ws-list*)
-               (websocket-driver:send ws v))))
+           (let ((view (satchi.view.electron-json:from
+                        (satchi.view.electron:make
+                         (satchi:service-state service)))))
+             (let ((msg (jsown:to-json
+                         (jsown:new-js
+                           ("type" "UpdateView")
+                           ("value" view)))))
+               (dolist (ws *ws-list*)
+                 (websocket-driver:send ws msg)))))
          :send-ntfs-fn
          (lambda (ntfs-jsown)
-           (let ((ntfs (jsown:to-json
-                        (jsown:new-js
-                          ("type" "SendDesktopNotification")
-                          ("value" ntfs-jsown)))))
+           (let ((msg (jsown:to-json
+                       (jsown:new-js
+                         ("type" "SendDesktopNotification")
+                         ("value" ntfs-jsown)))))
              (dolist (ws *ws-list*)
-               (websocket-driver:send ws ntfs))))))
+               (websocket-driver:send ws msg))))))
   (setq *worker-thread*
         (bt:make-thread
          (lambda ()
