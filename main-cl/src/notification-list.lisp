@@ -13,16 +13,19 @@
 
 (defgeneric ref (state-ref fn))
 
+(defmacro with-state ((s s-ref) &body body)
+  `(ref ,s-ref (lambda (,s) ,@body)))
+
 (defun mark-as-read (ntf-id &key client state-ref presenter)
-  (ref state-ref (lambda (state)
-                   (satchi.notification-holder:mark
-                    (state-holder state) ntf-id)))
+  (with-state (state state-ref)
+    (let ((holder (state-holder state)))
+      (satchi.notification-holder:mark holder ntf-id)))
   (satchi.presenter:update presenter)
   (satchi.client:mark-as-read client ntf-id))
 
 (defun fetch-to-pooled (&key client state-ref presenter)
   (let ((ntfs (satchi.client:fetch-notifications client)))
-    (ref state-ref (lambda (state)
-                     (satchi.notification-holder:add-to-pooled
-                      (state-holder state) ntfs))))
+    (with-state (state state-ref)
+      (let ((holder (state-holder state)))
+        (satchi.notification-holder:add-to-pooled holder ntfs))))
   (satchi.presenter:update presenter))
