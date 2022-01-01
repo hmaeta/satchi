@@ -65,18 +65,10 @@
   mention-only-p)
 
 (defmethod make ((state satchi:viewing-state))
-  (with-accessors
-        ((filter-state satchi:viewing-state-filter-state)
-         (gw-state-set satchi:viewing-state-gateway-state-set)) state
-    (make-viewing
-     :ntfs
-     (satchi.gateway:state-set-unread-list
-      gw-state-set #'plist->ntf
-      :is-mention-only (satchi:filter-state-is-mention-only filter-state)
-      :keyword (satchi:filter-state-keyword filter-state))
-
-     :mention-only-p
-     (satchi:filter-state-is-mention-only filter-state)
-
-     :incoming-notification-count
-     (satchi.gateway:state-set-pooled-count gw-state-set))))
+  (make-viewing
+   :ntfs
+   (satchi:viewing-state-ntfs state #'plist->ntf)
+   :mention-only-p
+   (satchi:viewing-state-mention-only-p state)
+   :incoming-notification-count
+   (satchi:viewing-state-incoming-notification-count state)))

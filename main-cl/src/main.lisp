@@ -5,10 +5,9 @@
            :make-service
            :loading-state
            :viewing-state
-           :viewing-state-filter-state
-           :viewing-state-gateway-state-set
-           :filter-state-is-mention-only
-           :filter-state-keyword
+           :viewing-state-ntfs
+           :viewing-state-mention-only-p
+           :viewing-state-incoming-notification-count
            :fetch-icon
            :view-latest
            :change-filter-keyword
@@ -38,6 +37,22 @@
 
 (defstruct loading-state)
 (defstruct viewing-state gateway-state-set filter-state)
+
+(defun viewing-state-ntfs (state convert-fn)
+  (with-accessors ((filter-state viewing-state-filter-state)
+                   (gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-unread-list gw-state-set convert-fn
+     :is-mention-only (filter-state-is-mention-only filter-state)
+     :keyword (filter-state-keyword filter-state))))
+
+(defun viewing-state-mention-only-p (state)
+  (with-accessors ((filter-state viewing-state-filter-state)) state
+    (filter-state-is-mention-only filter-state)))
+
+(defun viewing-state-incoming-notification-count (state)
+  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-pooled-count gw-state-set)))
+
 
 (defstruct service state gateways send-view-fn send-ntfs-fn)
 
