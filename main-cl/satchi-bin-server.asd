@@ -10,5 +10,4 @@
                :bordeaux-threads
                :satchi
                :satchi-server
-               :satchi-gateway-memory
                :satchi-view-electron))

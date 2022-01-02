@@ -1,10 +1,12 @@
 (defpackage :satchi.view.ncurses.ui
   (:use :cl)
-  (:export :view-latest
+  (:export :view-incoming-notifications
+           :view-latest
            :main))
 (in-package :satchi.view.ncurses.ui)
 
 (defgeneric view-latest (service))
+(defgeneric view-incoming-notifications (service))
 
 (defgeneric paint (v wnd))
 
@@ -65,6 +67,6 @@
                                   (charms:refresh-window wnd))))
                             (case c
                               ((#\r #\R)
-                               (view-latest service))
+                               (view-incoming-notifications service))
                               ((#\q #\Q)
                                (return-from loop))))))))))))

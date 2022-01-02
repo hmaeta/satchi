@@ -70,8 +70,9 @@
          (lambda ()
            (loop do (progn
                       (when *service*
-                        (satchi:fetch-to-pooled *service*))
-                      (sleep 15))))))
+                        (satchi:fetch-to-pooled *service*)
+                        (satchi:fetch-back-to-unread *service*))
+                      (sleep (* 10 60)))))))
   (setq *handler*
         (clack:clackup
          (let ((service *service*))

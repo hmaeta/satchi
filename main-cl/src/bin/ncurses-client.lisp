@@ -12,6 +12,14 @@
     (jsown:new-js
       ("op" "Notifications")))))
 
+(defmethod satchi.view.ncurses.ui:view-incoming-notifications
+    ((client client))
+  (wsd:send
+   (client-ws client)
+   (jsown:to-json
+    (jsown:new-js
+      ("op" "ViewIncomingNotifications")))))
+
 (defun create-client (update-view-fn)
   ;; electron server
   (let ((ws (wsd:make-client "ws://localhost:8037/connect")))
