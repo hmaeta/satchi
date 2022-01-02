@@ -8,7 +8,8 @@
 
 (defgeneric fetch-notifications (client))
 (defgeneric fetch-notifications-from (client offset))
-(defmethod fetch-notifiactions-from (client offset))
+(defmethod fetch-notifications-from (client offset))
+
 
 (defgeneric fetch-icon (client icon-id))
 (defmethod fetch-icon (client icon-id))

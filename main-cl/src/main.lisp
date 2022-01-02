@@ -14,6 +14,7 @@
            :mark-as-read
            :toggle-mentioned
            :view-incoming-notifications
+           :fetch-back-to-unread
            :fetch-to-pooled))
 (in-package :satchi)
 
@@ -53,6 +54,9 @@
   (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
     (satchi.gateway:state-set-pooled-count gw-state-set)))
 
+(defun viewing-state-gateway-state (state gw-id fn)
+  (with-accessors ((gw-state-set viewing-state-gateway-state-set)) state
+    (satchi.gateway:state-set-get-state gw-state-set gw-id fn)))
 
 (defstruct service state gateways send-view-fn send-ntfs-fn)
 
@@ -105,15 +109,14 @@
 (defun fetch-back-to-unread (service)
   (let ((state (service-state service)))
     (when (typep state 'viewing-state)
-      (let ((state-set (viewing-state-gateway-state-set state)))
-        (dolist (gw (service-gateways service))
-          (with-accessors ((id satchi.gateway:gateway-id)
-                           (client satchi.gateway:gateway-client)) gw
-          (satchi.gateway:state-set-get-state state-set id
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (viewing-state-gateway-state state id
            (lambda (gw-state)
              (satchi.time-machine:fetch-back-to-unread
               :client client
-              :state gw-state)))))))))
+              :state gw-state))))))))
 
 (defun view-incoming-notifications (service)
   (let ((state (service-state service)))
@@ -126,16 +129,15 @@
   (let ((state (service-state service)))
     (when (and (typep state 'viewing-state)
                (service-send-ntfs-fn service))
-      (let ((state-set (viewing-state-gateway-state-set state)))
-        (dolist (gw (service-gateways service))
-          (with-accessors ((id satchi.gateway:gateway-id)
-                           (client satchi.gateway:gateway-client)) gw
-            (satchi.gateway:state-set-get-state state-set id
-             (lambda (gw-state)
-               (satchi.desktop-notification:run
-                :client client
-                :state gw-state
-                :send-ntfs-fn (service-send-ntfs-fn service))))))))))
+      (dolist (gw (service-gateways service))
+        (with-accessors ((id satchi.gateway:gateway-id)
+                         (client satchi.gateway:gateway-client)) gw
+          (viewing-state-gateway-state state id
+           (lambda (gw-state)
+             (satchi.desktop-notification:run
+              :client client
+              :state gw-state
+              :send-ntfs-fn (service-send-ntfs-fn service)))))))))
 
 (defun view-latest (service)
   (with-slots (state) service
